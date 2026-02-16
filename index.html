@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Descent — Roguelike Dungeon Crawler</title>
+    <meta name="description"
+        content="A web-based roguelike dungeon crawler with POE-style passive skill tree, procedural dungeons, and turn-based combat. Rendered in 3D pixel art with Three.js.">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+    <!-- 3D Game Container -->
+    <div id="game-container"></div>
+
+    <!-- Skill Tree Canvas (2D Overlay) -->
+    <canvas id="skilltree-canvas"></canvas>
+
+    <!-- HUD (Top Bar) -->
+    <div id="hud">
+        <span id="level-text">LV 1</span>
+        <span id="floor-text">Floor 1 / 5</span>
+
+        <div class="bar-group">
+            <span class="bar-label">HP</span>
+            <div class="bar-container">
+                <div class="bar-fill hp-fill" id="hp-bar" style="width: 100%"></div>
+                <span class="bar-text" id="hp-text">100 / 100</span>
+            </div>
+        </div>
+
+        <div class="bar-group">
+            <span class="bar-label">MP</span>
+            <div class="bar-container">
+                <div class="bar-fill mp-fill" id="mp-bar" style="width: 100%"></div>
+                <span class="bar-text" id="mp-text">50 / 50</span>
+            </div>
+        </div>
+
+        <div class="bar-group">
+            <span class="bar-label">XP</span>
+            <div class="bar-container">
+                <div class="bar-fill xp-fill" id="xp-bar" style="width: 0%"></div>
+                <span class="bar-text" id="xp-text">0 / 50</span>
+            </div>
+        </div>
+
+        <span id="skill-points-text" class="skill-points"></span>
+    </div>
+
+    <!-- Side Panel (Right) -->
+    <div id="side-panel">
+        <!-- Stats -->
+        <div class="panel">
+            <div class="panel-title">⚔️ Stats</div>
+            <div id="stats-panel"></div>
+        </div>
+
+        <!-- Equipment -->
+        <div class="panel">
+            <div class="panel-title">🛡️ Equipment</div>
+            <div id="equipment-panel"></div>
+        </div>
+
+        <!-- Inventory -->
+        <div class="panel">
+            <div class="panel-title">🎒 Inventory (click to use/equip)</div>
+            <div id="inventory-panel"></div>
+        </div>
+
+        <!-- Combat Log -->
+        <div class="panel">
+            <div class="panel-title">📜 Combat Log</div>
+            <div id="combat-log"></div>
+        </div>
+    </div>
+
+    <!-- Skill Bar -->
+    <div id="skill-bar"></div>
+
+    <!-- Controls Hint -->
+    <div id="controls-hint">
+        WASD: Move &nbsp;|&nbsp; Click: Attack &nbsp;|&nbsp; Q / E: Skills &nbsp;|&nbsp; [T] Skill Tree
+    </div>
+
+    <!-- ===== SCREENS ===== -->
+
+    <!-- Menu Screen (Class Selection) -->
+    <div class="screen active" id="menu-screen">
+        <div class="menu-title">⚔️ Dark Descent</div>
+        <div class="menu-subtitle">CHOOSE YOUR CLASS</div>
+        <div class="class-select">
+            <button class="class-btn" data-class="warrior" style="--cls-color: #e74c3c;">
+                <span class="class-icon">⚔️</span>
+                <span class="class-name">Warrior</span>
+                <span class="class-desc">ถึก ทนทาน โจมตีแรง</span>
+                <span class="class-stats">HP 140 | STR 16 | Armor 4</span>
+            </button>
+            <button class="class-btn" data-class="rogue" style="--cls-color: #2ecc71;">
+                <span class="class-icon">🗡️</span>
+                <span class="class-name">Rogue</span>
+                <span class="class-desc">เร็ว คริติคอลสูง หลบเก่ง</span>
+                <span class="class-stats">SPD ★★ | Crit 15% | Dodge 12</span>
+            </button>
+            <button class="class-btn" data-class="mage" style="--cls-color: #3498db;">
+                <span class="class-icon">🔮</span>
+                <span class="class-name">Mage</span>
+                <span class="class-desc">พลังเวท โจมตีไกล เปราะบาง</span>
+                <span class="class-stats">Range ★★ | INT 18 | MP 100</span>
+            </button>
+        </div>
+        <div class="menu-controls">
+            Click to attack &bull; WASD to move &bull; [T] Skill Tree
+        </div>
+    </div>
+
+    <!-- Death Screen -->
+    <div class="screen" id="death-screen">
+        <div class="death-title">☠️ YOU DIED</div>
+        <div class="death-subtitle">The dungeon claims another soul...</div>
+        <div id="death-stats"></div>
+        <button class="btn" id="btn-restart">TRY AGAIN</button>
+    </div>
+
+    <!-- Victory Screen -->
+    <div class="screen" id="victory-screen">
+        <div class="victory-title">🏆 VICTORY!</div>
+        <div class="death-subtitle">You conquered the dungeon!</div>
+        <div id="victory-stats"></div>
+        <button class="btn" id="btn-restart-victory">PLAY AGAIN</button>
+    </div>
+
+    <!-- Scripts (order matters) -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/dungeon.js"></script>
+    <script src="js/items.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/enemy.js"></script>
+    <script src="js/combat.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/skilltree-data.js"></script>
+    <script src="js/skilltree.js"></script>
+    <script src="js/skilltree-ui.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+
+</html>
