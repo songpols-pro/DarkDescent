@@ -52,6 +52,7 @@ class Game {
     }
 
     setupInput() {
+        console.log('Setting up input...');
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
             this.keysHeld[key] = true;
@@ -144,17 +145,29 @@ class Game {
             if (equipSlot && equipSlot.dataset.slot) {
                 const result = this.inventory.handleEquipClick(this.player, equipSlot.dataset.slot, this.skillTree);
                 if (result) {
-                    this.ui.addLog(`Unequipped from ${result.slot}`, '#aaaaaa');
+                    if (result.action === 'drop_unequip') {
+                        this.ui.addLog(`Inventory full! Dropped ${result.item.name}`, '#aaaaaa');
+                        this.groundItems.push({ x: this.player.x, y: this.player.y, item: result.item });
+                    } else {
+                        this.ui.addLog(`Unequipped from ${result.slot}`, '#aaaaaa');
+                    }
                     this.ui.update(this.player, this.currentFloor);
                 }
             }
         });
 
         // Class selection buttons
-        document.querySelectorAll('.class-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
+        const classBtns = document.querySelectorAll('.class-btn');
+        console.log(`Found ${classBtns.length} class buttons`);
+        classBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                console.log('Class button clicked:', btn.dataset.class);
                 const classKey = btn.dataset.class;
-                this.startNewGame(classKey);
+                try {
+                    this.startNewGame(classKey);
+                } catch (err) {
+                    console.error('Error starting game:', err);
+                }
             });
         });
 
@@ -179,25 +192,40 @@ class Game {
     }
 
     startNewGame(classKey = 'warrior') {
-        this.player = new Player(classKey);
-        this.skillTree = new SkillTree();
-        this.currentFloor = 1;
-        this.generateFloor();
-        this.state = CONFIG.STATE.PLAYING;
-        this.ui.hideAllScreens();
-        this.ui.combatLog = [];
+        console.log('Starting new game with class:', classKey);
+        try {
+            this.player = new Player(classKey);
+            this.skillTree = new SkillTree();
+            this.currentFloor = 1;
+            this.generateFloor();
+            this.state = CONFIG.STATE.PLAYING;
+            this.ui.hideAllScreens();
+            this.ui.combatLog = [];
 
-        const cls = CONFIG.CLASSES[classKey];
-        this.ui.addLog(`${cls.icon} ${cls.name} enters the dungeon!`, cls.color);
-        this.ui.addLog('WASD Move | Click Attack | Q/E Skills | F Pickup | T Skill Tree', '#888899');
-        this.player.recalculateStats(this.skillTree.getTotalBonuses());
-        this.ui.update(this.player, this.currentFloor);
-        document.getElementById('hud').style.display = 'flex';
-        document.getElementById('side-panel').style.display = 'flex';
-        this.updateSkillBar();
+            const cls = CONFIG.CLASSES[classKey];
+            this.ui.addLog(`${cls.icon} ${cls.name} enters the dungeon!`, cls.color);
+            this.ui.addLog('WASD Move | Click Attack | Q/E Skills | F Pickup | T Skill Tree', '#888899');
+            this.player.recalculateStats(this.skillTree.getTotalBonuses());
+            this.ui.update(this.player, this.currentFloor);
+            document.getElementById('hud').style.display = 'flex';
+            document.getElementById('side-panel').style.display = 'flex';
+            this.updateSkillBar();
 
-        // Force rebuild player mesh for the new class
-        this.renderer.playerMesh = null;
+            // Force rebuild player mesh for the new class
+            this.renderer.playerMesh = null;
+
+            // Only hide screens and show HUD if everything succeeded
+            this.ui.hideAllScreens();
+            document.getElementById('hud').style.display = 'flex';
+            document.getElementById('side-panel').style.display = 'flex';
+
+            console.log('Game started successfully');
+        } catch (e) {
+            console.error('Error in startNewGame:', e);
+            alert('Failed to start game: ' + e.message);
+            this.state = CONFIG.STATE.MENU;
+            this.ui.showScreen('menu-screen');
+        }
     }
 
     generateFloor() {

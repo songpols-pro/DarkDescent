@@ -25,22 +25,34 @@ class GameUI {
     }
 
     update(player, floor) {
+        if (!player || !player.stats) return;
+
+        const stats = player.stats;
+
         // HP
-        const hpPercent = (player.hp / player.maxHp * 100);
+        const maxHp = stats.maxHp || 100;
+        const hpPercent = Math.max(0, Math.min(100, (player.hp / maxHp * 100) || 0));
         this.hpBar.style.width = hpPercent + '%';
-        this.hpText.textContent = `${player.hp} / ${player.maxHp}`;
+        this.hpText.textContent = `${Math.ceil(player.hp)} / ${maxHp}`;
         this.hpBar.className = 'bar-fill hp-fill' + (hpPercent < 25 ? ' low' : '');
 
         // MP
-        this.mpBar.style.width = (player.mp / player.maxMp * 100) + '%';
-        this.mpText.textContent = `${player.mp} / ${player.maxMp}`;
+        const maxMp = stats.maxMp || 50;
+        const mpPercent = Math.max(0, Math.min(100, (player.mp / maxMp * 100) || 0));
+        this.mpBar.style.width = mpPercent + '%';
+        this.mpText.textContent = `${Math.ceil(player.mp)} / ${maxMp}`;
 
         // XP
-        this.xpBar.style.width = (player.xp / player.xpToLevel * 100) + '%';
-        this.xpText.textContent = `${player.xp} / ${player.xpToLevel}`;
+        const xpNext = player.xpToNextLevel || 100;
+        const xpPercent = Math.max(0, Math.min(100, (player.xp / xpNext * 100) || 0));
+        this.xpBar.style.width = xpPercent + '%';
+        const xpRemaining = xpNext - player.xp;
+        this.xpText.textContent = `${player.xp} / ${xpNext} (${xpRemaining} to Level)`;
 
         // Level & Floor
-        this.levelText.textContent = `LV ${player.level}`;
+        this.levelText.textContent = player.advancedClass
+            ? `${CONFIG.ADVANCED_CLASSES[player.advancedClass].name} (LV ${player.level})`
+            : `${player.classDef.name} (LV ${player.level})`;
         this.floorText.textContent = `Floor ${floor} / ${CONFIG.MAX_FLOORS}`;
 
         // Skill points
@@ -53,14 +65,14 @@ class GameUI {
         // Stats
         if (this.statsPanel) {
             this.statsPanel.innerHTML = `
-                <div class="stat"><span>STR</span><span class="stat-val">${player.str || player.baseStr}</span></div>
-                <div class="stat"><span>DEX</span><span class="stat-val">${player.dex || player.baseDex}</span></div>
-                <div class="stat"><span>INT</span><span class="stat-val">${player.int || player.baseInt}</span></div>
-                <div class="stat"><span>Armor</span><span class="stat-val">${player.armor}</span></div>
-                <div class="stat"><span>Crit</span><span class="stat-val">${player.critChance.toFixed(1)}%</span></div>
-                <div class="stat"><span>CritX</span><span class="stat-val">${player.critMulti.toFixed(1)}x</span></div>
-                <div class="stat"><span>Dodge</span><span class="stat-val">${player.dodge.toFixed(1)}%</span></div>
-                <div class="stat"><span>Dmg%</span><span class="stat-val">+${player.damagePercent || 0}%</span></div>
+                <div class="stat"><span>STR</span><span class="stat-val">${stats.str}</span></div>
+                <div class="stat"><span>DEX</span><span class="stat-val">${stats.dex}</span></div>
+                <div class="stat"><span>INT</span><span class="stat-val">${stats.int}</span></div>
+                <div class="stat"><span>Armor</span><span class="stat-val">${stats.armor}</span></div>
+                <div class="stat"><span>Crit</span><span class="stat-val">${stats.critChance.toFixed(1)}%</span></div>
+                <div class="stat"><span>CritX</span><span class="stat-val">${stats.critMulti.toFixed(1)}x</span></div>
+                <div class="stat"><span>Dodge</span><span class="stat-val">${stats.dodge.toFixed(1)}%</span></div>
+                <div class="stat"><span>Dmg%</span><span class="stat-val">+${stats.damagePercent || 0}%</span></div>
             `;
         }
 
@@ -107,6 +119,64 @@ class GameUI {
                 this.inventoryPanel.appendChild(div);
             }
         }
+
+        // Promotion Check
+        const promoteBtn = document.getElementById('btn-promote');
+        if (promoteBtn) {
+            if (player.level >= 10 && !player.advancedClass && player.classDef.promotions) {
+                promoteBtn.style.display = 'block';
+                promoteBtn.onclick = () => this.showPromotionModal(player);
+            } else {
+                promoteBtn.style.display = 'none';
+            }
+        }
+    }
+
+    showPromotionModal(player) {
+        let modal = document.getElementById('promotion-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'promotion-modal';
+            modal.className = 'modal-overlay';
+            document.body.appendChild(modal);
+        }
+
+        const promotions = player.classDef.promotions || [];
+        const optionsHtml = promotions.map(key => {
+            const cls = CONFIG.ADVANCED_CLASSES[key];
+            if (!cls) return '';
+            const statsBonus = Object.entries(cls.baseStatsAdd || {}).map(([k, v]) => `+${v} ${k}`).join(', ');
+            return `
+                <div class="class-card class-btn" onclick="UI.promotePlayer('${key}')">
+                    <div class="class-icon" style="background:${cls.color}">${cls.icon}</div>
+                    <h3>${cls.name}</h3>
+                    <p class="cls-stats">${statsBonus}</p>
+                    <p class="cls-desc">Specialized ${player.classDef.name}</p>
+                </div>
+            `;
+        }).join('');
+
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h2>Class Promotion</h2>
+                <div class="class-selection">
+                    ${optionsHtml}
+                </div>
+                <button onclick="document.getElementById('promotion-modal').remove()" class="close-btn">Cancel</button>
+            </div>
+        `;
+
+        modal.style.display = 'flex';
+
+        // Helper
+        window.UI = window.UI || {};
+        window.UI.promotePlayer = (key) => {
+            if (player.promote(key)) {
+                this.addLog(`⭐ Promoted to ${CONFIG.ADVANCED_CLASSES[key].name}!`, '#ffd700');
+                if (this.renderer && this.renderer.shake) this.renderer.shake(10); // Check if renderer exists on UI or global
+                document.getElementById('promotion-modal').remove();
+            }
+        };
     }
 
     addLog(message, color = '#cccccc') {

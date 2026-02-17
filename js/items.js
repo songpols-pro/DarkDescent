@@ -19,12 +19,28 @@ const RARITY = {
 };
 
 const ITEM_BASES = {
-    // Weapons
-    rusty_sword: { type: ITEM_TYPES.WEAPON, name: 'Rusty Sword', symbol: '🗡️', baseDamage: [4, 8], slot: 'weapon' },
-    iron_sword: { type: ITEM_TYPES.WEAPON, name: 'Iron Sword', symbol: '⚔️', baseDamage: [7, 13], slot: 'weapon' },
-    dark_blade: { type: ITEM_TYPES.WEAPON, name: 'Dark Blade', symbol: '🔪', baseDamage: [10, 18], slot: 'weapon' },
-    flame_sword: { type: ITEM_TYPES.WEAPON, name: 'Flame Sword', symbol: '🔥', baseDamage: [14, 24], slot: 'weapon' },
-    doom_axe: { type: ITEM_TYPES.WEAPON, name: 'Doom Axe', symbol: '🪓', baseDamage: [18, 30], slot: 'weapon' },
+    // Weapons (Swords - Balanced)
+    rusty_sword: { type: ITEM_TYPES.WEAPON, name: 'Rusty Sword', symbol: '🗡️', baseDamage: [4, 8], slot: 'weapon', range: 1.2, cooldown: 0.5, arc: Math.PI / 2.5 },
+    iron_sword: { type: ITEM_TYPES.WEAPON, name: 'Iron Sword', symbol: '⚔️', baseDamage: [7, 13], slot: 'weapon', range: 1.2, cooldown: 0.5, arc: Math.PI / 2.5 },
+    dark_blade: { type: ITEM_TYPES.WEAPON, name: 'Dark Blade', symbol: '🔪', baseDamage: [10, 18], slot: 'weapon', range: 1.2, cooldown: 0.45, arc: Math.PI / 2.5 },
+    flame_sword: { type: ITEM_TYPES.WEAPON, name: 'Flame Sword', symbol: '🔥', baseDamage: [14, 24], slot: 'weapon', range: 1.2, cooldown: 0.5, arc: Math.PI / 2.5 },
+
+    // Axes - High Dmg, Slow, Wide Arc
+    wood_axe: { type: ITEM_TYPES.WEAPON, name: 'Wood Axe', symbol: '🪓', baseDamage: [8, 14], slot: 'weapon', range: 1.0, cooldown: 0.8, arc: Math.PI / 1.5 },
+    battle_axe: { type: ITEM_TYPES.WEAPON, name: 'Battle Axe', symbol: '🪓', baseDamage: [15, 25], slot: 'weapon', range: 1.1, cooldown: 0.9, arc: Math.PI / 1.2 },
+    doom_axe: { type: ITEM_TYPES.WEAPON, name: 'Doom Axe', symbol: '💀', baseDamage: [25, 40], slot: 'weapon', range: 1.1, cooldown: 1.0, arc: Math.PI / 1.2 },
+
+    // Daggers - Low Dmg, Fast, Narrow Arc, High Crit (implicit via attributes or speed)
+    rusted_dagger: { type: ITEM_TYPES.WEAPON, name: 'Rusty Dagger', symbol: '🗡️', baseDamage: [3, 6], slot: 'weapon', range: 0.8, cooldown: 0.25, arc: Math.PI / 6 },
+    assassin_dagger: { type: ITEM_TYPES.WEAPON, name: 'Assassin Dagger', symbol: '🗡️', baseDamage: [6, 10], slot: 'weapon', range: 0.8, cooldown: 0.2, arc: Math.PI / 6 },
+
+    // Spears - Med Dmg, Long Range, Narrow Arc
+    wooden_spear: { type: ITEM_TYPES.WEAPON, name: 'Wooden Spear', symbol: '🔱', baseDamage: [5, 9], slot: 'weapon', range: 2.5, cooldown: 0.6, arc: Math.PI / 8 },
+    steel_lance: { type: ITEM_TYPES.WEAPON, name: 'Steel Lance', symbol: '🔱', baseDamage: [10, 16], slot: 'weapon', range: 2.8, cooldown: 0.6, arc: Math.PI / 8 },
+
+    // Staffs - Low Melee Dmg, Boosts Magic
+    apprentice_staff: { type: ITEM_TYPES.WEAPON, name: 'Apprentice Staff', symbol: '🦯', baseDamage: [3, 5], slot: 'weapon', range: 1.5, cooldown: 0.6, arc: Math.PI / 3, bonuses: { intFlat: 3 } },
+    elder_staff: { type: ITEM_TYPES.WEAPON, name: 'Elder Staff', symbol: '🦯', baseDamage: [6, 10], slot: 'weapon', range: 1.5, cooldown: 0.6, arc: Math.PI / 3, bonuses: { intFlat: 6 } },
 
     // Helmets
     leather_cap: { type: ITEM_TYPES.HELMET, name: 'Leather Cap', symbol: '🎩', baseArmor: 2, slot: 'helmet' },
@@ -46,42 +62,14 @@ const ITEM_BASES = {
     gold_ring: { type: ITEM_TYPES.RING, name: 'Gold Ring', symbol: '💍', slot: 'ring' },
 };
 
-// Possible affixes for magic+ items
-const PREFIXES = [
-    { name: 'Sharp', bonus: { strPercent: 10 } },
-    { name: 'Sturdy', bonus: { armor: 3 } },
-    { name: 'Quick', bonus: { critChance: 5 } },
-    { name: 'Vital', bonus: { maxHp: 15 } },
-    { name: 'Arcane', bonus: { maxMp: 15 } },
-    { name: 'Deadly', bonus: { critMulti: 0.2 } },
-    { name: 'Evasive', bonus: { dodge: 5 } },
-    { name: 'Mighty', bonus: { strFlat: 3 } },
-];
-
-const SUFFIXES = [
-    { name: 'of Power', bonus: { strFlat: 5 } },
-    { name: 'of the Bear', bonus: { maxHp: 25 } },
-    { name: 'of the Fox', bonus: { dodge: 4, critChance: 3 } },
-    { name: 'of the Owl', bonus: { maxMp: 20, intFlat: 3 } },
-    { name: 'of Fury', bonus: { critMulti: 0.3 } },
-    { name: 'of Iron', bonus: { armor: 5 } },
-    { name: 'of Haste', bonus: { dexFlat: 4 } },
-    { name: 'of Life', bonus: { maxHp: 20, armor: 2 } },
-];
-
-const POTION_TYPES = [
-    { name: 'Health Potion', symbol: '❤️', effect: 'heal', value: 30, color: '#e74c3c' },
-    { name: 'Greater Health Potion', symbol: '💖', effect: 'heal', value: 60, color: '#ff6699' },
-    { name: 'Mana Potion', symbol: '💙', effect: 'mana', value: 25, color: '#3498db' },
-    { name: 'Strength Elixir', symbol: '💪', effect: 'buff_str', value: 5, duration: 20, color: '#e74c3c' },
-];
+// ... PREFIXES/SUFFIXES ...
 
 // Floor-based loot tables (item base keys available per floor)
 const FLOOR_LOOT = [
-    ['rusty_sword', 'leather_cap', 'cloth_robe', 'sandals', 'copper_ring'],
-    ['rusty_sword', 'iron_sword', 'leather_cap', 'iron_helm', 'cloth_robe', 'chain_mail', 'sandals', 'iron_boots', 'copper_ring'],
-    ['iron_sword', 'dark_blade', 'iron_helm', 'chain_mail', 'iron_boots', 'shadow_boots', 'copper_ring', 'gold_ring'],
-    ['dark_blade', 'flame_sword', 'iron_helm', 'dark_crown', 'chain_mail', 'plate_armor', 'shadow_boots', 'gold_ring'],
+    ['rusty_sword', 'wood_axe', 'rusted_dagger', 'leather_cap', 'cloth_robe', 'sandals', 'copper_ring', 'apprentice_staff'],
+    ['iron_sword', 'wooden_spear', 'leather_cap', 'iron_helm', 'cloth_robe', 'chain_mail', 'sandals', 'iron_boots', 'copper_ring'],
+    ['iron_sword', 'dark_blade', 'battle_axe', 'assassin_dagger', 'iron_helm', 'chain_mail', 'iron_boots', 'shadow_boots', 'gold_ring'],
+    ['dark_blade', 'flame_sword', 'steel_lance', 'elder_staff', 'iron_helm', 'dark_crown', 'chain_mail', 'plate_armor', 'shadow_boots', 'gold_ring'],
     ['flame_sword', 'doom_axe', 'dark_crown', 'plate_armor', 'shadow_boots', 'gold_ring'],
 ];
 
@@ -104,10 +92,14 @@ class ItemGenerator {
             slot: base.slot,
             symbol: base.symbol,
             rarity: rarity,
-            bonuses: {},
+            bonuses: base.bonuses ? { ...base.bonuses } : {},
             baseDamage: base.baseDamage ? [...base.baseDamage] : null,
             baseArmor: base.baseArmor || 0,
             baseDodge: base.baseDodge || 0,
+            // Weapon stats
+            range: base.range,
+            cooldown: base.cooldown,
+            arc: base.arc
         };
 
         // Apply rarity multiplier to base stats
@@ -169,6 +161,9 @@ class ItemGenerator {
         const lines = [];
         if (item.baseDamage) {
             lines.push(`Damage: ${item.baseDamage[0]}-${item.baseDamage[1]}`);
+        }
+        if (item.range) {
+            lines.push(`Range: ${item.range.toFixed(1)} | Spd: ${item.cooldown}s`);
         }
         if (item.baseArmor) {
             lines.push(`Armor: +${item.baseArmor}`);

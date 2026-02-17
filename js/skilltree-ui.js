@@ -97,6 +97,7 @@ class SkillTreeUI {
     getNodeRadius(node) {
         switch (node.type) {
             case 'keystone': return 24;
+            case 'skill_unlock': return 22;
             case 'notable': return 18;
             case 'start': return 20;
             default: return 12;
@@ -252,6 +253,9 @@ class SkillTreeUI {
         if (node.type === 'keystone') {
             // Diamond shape for keystones
             this.drawDiamond(ctx, pos.x, pos.y, radius);
+        } else if (node.type === 'skill_unlock') {
+            // Hexagon for active skills
+            this.drawHexagon(ctx, pos.x, pos.y, radius);
         } else {
             ctx.beginPath();
             ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
@@ -268,7 +272,8 @@ class SkillTreeUI {
             ctx.shadowColor = categoryColor;
             ctx.shadowBlur = 10 * pulse + 5;
         } else {
-            ctx.fillStyle = CONFIG.COLORS.NODE_UNALLOCATED;
+            // Locked
+            ctx.fillStyle = '#222233';
             ctx.shadowBlur = 0;
         }
 
@@ -286,7 +291,7 @@ class SkillTreeUI {
             ctx.strokeStyle = categoryColor;
             ctx.lineWidth = 2;
         } else {
-            ctx.strokeStyle = 'rgba(80, 80, 100, 0.5)';
+            ctx.strokeStyle = 'rgba(50, 50, 60, 0.5)';
             ctx.lineWidth = 1;
         }
         ctx.stroke();
@@ -298,7 +303,13 @@ class SkillTreeUI {
             gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
             ctx.fillStyle = gradient;
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+            if (node.type === 'keystone') {
+                this.drawDiamond(ctx, pos.x, pos.y, radius);
+            } else if (node.type === 'skill_unlock') {
+                this.drawHexagon(ctx, pos.x, pos.y, radius);
+            } else {
+                ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+            }
             ctx.fill();
         }
 
@@ -322,6 +333,18 @@ class SkillTreeUI {
         ctx.closePath();
     }
 
+    drawHexagon(ctx, x, y, r) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI / 3) * i;
+            const px = x + Math.cos(angle) * r;
+            const py = y + Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+    }
+
     drawTooltip(ctx, node, skillTree, player) {
         if (!node) return;
 
@@ -336,12 +359,23 @@ class SkillTreeUI {
             lines.push('');
             if (node.allocated) {
                 lines.push('[Right-click to refund]');
-            } else if (skillTree.canAllocate(node.id, player.skillPoints)) {
-                lines.push('[Click to allocate]');
-            } else if (player.skillPoints <= 0) {
-                lines.push('[No skill points]');
             } else {
-                lines.push('[Not connected]');
+                const can = skillTree.canAllocate(node.id, player.skillPoints, player);
+                if (can) {
+                    lines.push('[Click to allocate]');
+                } else {
+                    if (player.skillPoints <= 0) lines.push('[No skill points]');
+
+                    // Show missing requirements
+                    const connected = node.connections.some(connId => skillTree.allocatedNodes.has(connId));
+                    if (!connected) lines.push('[Not connected]');
+
+                    if (node.requirements) {
+                        if (node.requirements.level && player.level < node.requirements.level) {
+                            lines.push(`[Req: Level ${node.requirements.level}]`);
+                        }
+                    }
+                }
             }
         }
 

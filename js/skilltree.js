@@ -20,21 +20,35 @@ class SkillTree {
         this.nodes['start'].allocated = true;
     }
 
-    canAllocate(nodeId, availablePoints) {
+    canAllocate(nodeId, availablePoints, player) {
         if (availablePoints <= 0) return false;
         if (this.allocatedNodes.has(nodeId)) return false;
 
         const node = this.nodes[nodeId];
         if (!node) return false;
 
+        // Check requirements
+        if (node.requirements) {
+            if (node.requirements.level && player.level < node.requirements.level) return false;
+            // Check other stats if needed (e.g. strFlat)
+            // For now, simpler check:
+            // if (node.requirements.strFlat && player.stats.str < node.requirements.strFlat) return false;
+        }
+
         // Must be connected to at least one allocated node
         return node.connections.some(connId => this.allocatedNodes.has(connId));
     }
 
-    allocate(nodeId) {
+    allocate(nodeId, player) {
         if (this.allocatedNodes.has(nodeId)) return false;
         this.allocatedNodes.add(nodeId);
         this.nodes[nodeId].allocated = true;
+
+        // Handle Skill Unlocks
+        if (this.nodes[nodeId].skillUnlock) {
+            player.learnSkill(this.nodes[nodeId].skillUnlock);
+        }
+
         return true;
     }
 
@@ -94,8 +108,8 @@ class SkillTree {
         return this.allocatedNodes.has(nodeId);
     }
 
-    isAvailable(nodeId, availablePoints) {
-        return this.canAllocate(nodeId, availablePoints);
+    isAvailable(nodeId, availablePoints, player) {
+        return this.canAllocate(nodeId, availablePoints, player);
     }
 
     reset() {

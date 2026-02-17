@@ -31,7 +31,8 @@ const CONFIG = {
                     buffStat: 'damagePercent', buffValue: 50, duration: 5,
                     color: '#ffcc00', effectColor: 0xffcc00
                 }
-            ]
+            ],
+            promotions: ['knight', 'berserker']
         },
         rogue: {
             name: 'Rogue',
@@ -43,51 +44,84 @@ const CONFIG = {
             weaponColor: 0x888888,
             stats: { maxHp: 85, maxMp: 40, str: 10, dex: 16, int: 8, armor: 1, critChance: 15, critMulti: 2.0, dodge: 12 },
             speed: 5.5,
-            attackRange: 0.9,
-            attackCooldown: 0.25,
-            attackArc: Math.PI / 3,  // 60 degree quick slash
+            attackRange: 1.4,
+            attackCooldown: 0.35,
+            attackArc: Math.PI / 3,
             skills: [
-                {
-                    name: 'Shadow Dash', icon: '💨', desc: 'Teleport + damage',
-                    cooldown: 6, manaCost: 12, type: 'dash',
-                    damage: 20, dashDistance: 3, dashWidth: 0.8,
-                    color: '#33ff88', effectColor: 0x33ff88
-                },
-                {
-                    name: 'Poison Blade', icon: '🧪', desc: 'Poison 3 hits',
-                    cooldown: 12, manaCost: 15, type: 'buff',
-                    buffStat: 'poisonHits', buffValue: 3, poisonDamage: 8, duration: 15,
-                    color: '#88ff33', effectColor: 0x88ff33
-                }
-            ]
+                { id: 'dash', name: 'Dash', manaCost: 10, cooldown: 3, color: '#88ff88', icon: '💨', type: 'dash', dashDistance: 4, dashWidth: 1, damage: 15, effectColor: '#00ff00' },
+                { id: 'poison', name: 'Poison', manaCost: 15, cooldown: 10, color: '#aaff00', icon: '☠️', type: 'buff', buffStat: 'poisonHits', buffValue: 3, poisonDamage: 5, effectColor: '#00ff00' }
+            ],
+            promotions: ['assassin', 'duelist']
         },
         mage: {
             name: 'Mage',
             icon: '🔮',
-            desc: 'พลังเวท โจมตีไกล เปราะบาง',
-            color: '#3498db',
-            bodyColor: 0x2244aa,
-            headColor: 0x3366cc,
-            weaponColor: 0x9944ff,
-            stats: { maxHp: 70, maxMp: 100, str: 5, dex: 8, int: 18, armor: 0, critChance: 8, critMulti: 1.8, dodge: 4 },
-            speed: 4.0,
-            attackRange: 3.5,
+            desc: 'จอมเวทย์ผู้ใช้พลังธาตุโจมตีระยะไกล',
+            color: '#4444ff',
+            bodyColor: 0x3333aa,
+            headColor: 0x4444ff,
+            weaponColor: 0x88ffff,
+            stats: { maxHp: 70, maxMp: 80, str: 1, dex: 3, int: 8, armor: 0, critChance: 5, critMulti: 1.5, dodge: 5 },
+            speed: 3.5,
+            attackRange: 2.0,
             attackCooldown: 0.6,
-            attackArc: Math.PI / 6,  // 30 degree projectile-like
+            attackArc: Math.PI / 3,
             skills: [
-                {
-                    name: 'Fireball', icon: '🔥', desc: 'AoE explosion',
-                    cooldown: 5, manaCost: 20, type: 'aoe_target',
-                    damage: 35, radius: 2.0, range: 5,
-                    color: '#ff4400', effectColor: 0xff4400
-                },
-                {
-                    name: 'Frost Shield', icon: '❄️', desc: 'Shield + slow',
-                    cooldown: 18, manaCost: 25, type: 'shield',
-                    shieldAmount: 50, slowRadius: 2.5, slowFactor: 0.5, duration: 6,
-                    color: '#44ccff', effectColor: 0x44ccff
-                }
-            ]
+                { id: 'fireball', name: 'Fireball', manaCost: 20, cooldown: 4, color: '#8888ff', icon: '🔥', type: 'aoe_target', damage: 25, range: 5, radius: 1.5, effectColor: '#ffaa00' },
+                { id: 'frost', name: 'Frost', manaCost: 25, cooldown: 12, color: '#00ffff', icon: '❄️', type: 'shield', shieldAmount: 30, slowRadius: 3, slowFactor: 0.5, duration: 5, effectColor: '#00ffff' }
+            ],
+            promotions: ['archmage', 'warlock']
+        }
+    },
+
+    ADVANCED_CLASSES: {
+        knight: {
+            name: 'Knight',
+            reqLevel: 10,
+            baseStatsAdd: { maxHp: 50, armor: 5 },
+            growth: { maxHp: 20, maxMp: 3, str: 2, dex: 0.5, int: 1 },
+            color: '#dddddd',
+            icon: '🛡️'
+        },
+        berserker: {
+            name: 'Berserker',
+            reqLevel: 10,
+            baseStatsAdd: { maxHp: 20, str: 5, damagePercent: 10 },
+            growth: { maxHp: 18, maxMp: 0, str: 3, dex: 1, int: 0 },
+            color: '#aa0000',
+            icon: '🩸'
+        },
+        assassin: {
+            name: 'Assassin',
+            reqLevel: 10,
+            baseStatsAdd: { dex: 5, critChance: 10 },
+            growth: { maxHp: 9, maxMp: 5, str: 1, dex: 3, int: 1 },
+            color: '#222222',
+            icon: '🌑'
+        },
+        duelist: {
+            name: 'Duelist',
+            reqLevel: 10,
+            baseStatsAdd: { dex: 3, str: 3, dodge: 10 },
+            growth: { maxHp: 12, maxMp: 4, str: 2, dex: 2, int: 0 },
+            color: '#aaaaff',
+            icon: '⚔️'
+        },
+        archmage: {
+            name: 'Archmage',
+            reqLevel: 10,
+            baseStatsAdd: { maxMp: 60, int: 6 },
+            growth: { maxHp: 6, maxMp: 15, str: 0, dex: 0, int: 3 },
+            color: '#0000aa',
+            icon: '🧙‍♂️'
+        },
+        warlock: {
+            name: 'Warlock',
+            reqLevel: 10,
+            baseStatsAdd: { maxHp: 40, int: 4, damagePercent: 5 },
+            growth: { maxHp: 10, maxMp: 8, str: 1, dex: 1, int: 2 },
+            color: '#880088',
+            icon: '💀'
         }
     },
 

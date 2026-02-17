@@ -30,8 +30,14 @@ class Inventory {
             }
         } else if (item.slot) {
             // Equip the item
-            const prevItem = player.equipment[item.slot];
-            player.equip(item);
+            player.inventory[slotIndex] = null; // Remove from inventory first
+            const prevItem = player.equip(item);
+
+            if (prevItem) {
+                // Swap: Put old item in the same slot
+                player.inventory[slotIndex] = prevItem;
+            }
+
             player.recalculateStats(skillTree ? skillTree.getTotalBonuses() : {});
             return { action: 'equip', item, prevItem };
         }
@@ -40,10 +46,17 @@ class Inventory {
     }
 
     handleEquipClick(player, slot, skillTree) {
-        if (player.equipment[slot]) {
+        const item = player.equipment[slot];
+        if (item) {
             player.unequip(slot);
             player.recalculateStats(skillTree ? skillTree.getTotalBonuses() : {});
-            return { action: 'unequip', slot };
+
+            // Try to add back to inventory
+            if (!player.addToInventory(item)) {
+                return { action: 'drop_unequip', item, slot };
+            }
+
+            return { action: 'unequip', slot, item };
         }
         return null;
     }

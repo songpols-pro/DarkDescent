@@ -32,31 +32,13 @@ class Player {
         // Stats
         this.level = 1;
         this.xp = 0;
-        this.xpToNext = CONFIG.XP_PER_LEVEL;
+        this.xpToNextLevel = CONFIG.XP_PER_LEVEL; // Renamed from xpToNext
         this.skillPoints = 0;
 
-        const cs = this.classDef.stats;
-        this.baseStats = {
-            maxHp: cs.maxHp,
-            maxMp: cs.maxMp,
-            str: cs.str,
-            dex: cs.dex,
-            int: cs.int,
-            armor: cs.armor,
-            critChance: cs.critChance,
-            critMulti: cs.critMulti,
-            dodge: cs.dodge,
-            strPercent: 0,
-            dexPercent: 0,
-            intPercent: 0,
-            damagePercent: 0,
-            hpPercent: 0,
-            mpPercent: 0,
-            armorPercent: 0,
-            lifeOnHit: 0,
-            manaOnHit: 0,
-        };
+        // Base stats from class definition
+        this.baseStats = { ...this.classDef.stats };
 
+        // Initialize stats with base stats
         this.stats = { ...this.baseStats };
         this.hp = this.stats.maxHp;
         this.mp = this.stats.maxMp;
@@ -176,6 +158,17 @@ class Player {
             });
         });
 
+        // Weapon Override
+        if (this.equipment.weapon) {
+            this.attackRange = this.equipment.weapon.range || this.classDef.attackRange;
+            this.attackCooldownTime = this.equipment.weapon.cooldown || this.classDef.attackCooldown;
+            this.attackArc = this.equipment.weapon.arc || this.classDef.attackArc;
+        } else {
+            this.attackRange = this.classDef.attackRange;
+            this.attackCooldownTime = this.classDef.attackCooldown;
+            this.attackArc = this.classDef.attackArc;
+        }
+
         // Add skill tree bonuses
         Object.entries(treeBonus).forEach(([k, v]) => {
             s[k] = (s[k] || 0) + v;
@@ -186,10 +179,10 @@ class Player {
             if (b.stat) s[b.stat] = (s[b.stat] || 0) + b.value;
         });
 
-        // Per-level scaling
-        s.str += (this.level - 1) * 2;
-        s.dex += (this.level - 1) * 1;
-        s.int += (this.level - 1) * 1;
+        // Per-level scaling is now handled in baseStats (cumulative growth)
+        // s.str += (this.level - 1) * 2;
+        // s.dex += (this.level - 1) * 1;
+        // s.int += (this.level - 1) * 1;
 
         // Apply percentage bonuses
         s.str = Math.round(s.str * (1 + (s.strPercent || 0) / 100));
@@ -217,11 +210,11 @@ class Player {
     gainXp(amount) {
         this.xp += amount;
         const levelUps = [];
-        while (this.xp >= this.xpToNext) {
-            this.xp -= this.xpToNext;
+        while (this.xp >= this.xpToNextLevel) {
+            this.xp -= this.xpToNextLevel;
             this.level++;
             this.skillPoints += CONFIG.SKILL_POINTS_PER_LEVEL;
-            this.xpToNext = Math.round(CONFIG.XP_PER_LEVEL * Math.pow(CONFIG.XP_GROWTH, this.level - 1));
+            this.xpToNextLevel = Math.round(CONFIG.XP_PER_LEVEL * Math.pow(CONFIG.XP_GROWTH, this.level - 1));
             this.hp = this.stats.maxHp;
             this.mp = this.stats.maxMp;
             levelUps.push(this.level);
@@ -368,7 +361,7 @@ class Player {
     get baseStr() { return this.baseStats.str; }
     get baseDex() { return this.baseStats.dex; }
     get baseInt() { return this.baseStats.int; }
-    get xpToLevel() { return this.xpToNext; }
+    get xpToLevel() { return this.xpToNextLevel; }
     get maxInventory() { return this.inventory.length; }
 }
 
