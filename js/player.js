@@ -72,8 +72,40 @@ class Player {
 
         // Game stats
         this.stats.turnsPlayed = 0;
-        this.stats.enemiesKilled = 0;
+        this.stats.enemiesKilled = 0; // Fixed: was kills
+        this.stats.kills = 0; // Duplicate for safety if referenced elsewhere
         this.stats.floorsCleared = 0;
+        this.stats.damageDealt = 0;
+        this.stats.damageTaken = 0;
+        this.stats.itemsFound = 0;
+        this.stats.potionsUsed = 0;
+
+        // Active Skills (starts with class default)
+        this.skills = [...this.classDef.skills];
+    }
+
+    learnSkill(skillId) {
+        // Look up skill definition from CONFIG.SKILLS (which we will add)
+        // or finding it in classDef if it's there (but usually unlockables are separate)
+        let skill = null;
+
+        // Check if it's already in our class definition (some might be)
+        // or check global config
+        if (CONFIG.SKILLS && CONFIG.SKILLS[skillId]) {
+            skill = CONFIG.SKILLS[skillId];
+        }
+
+        if (skill) {
+            // Check if we already have it
+            const existing = this.skills.find(s => s.id === skillId || s.name === skill.name);
+            if (!existing) {
+                this.skills.push(skill);
+                // Also initialize cooldown
+                this.skillCooldowns.push(0);
+                return true;
+            }
+        }
+        return false;
     }
 
     // Real-time movement update
@@ -154,7 +186,11 @@ class Player {
         Object.values(this.equipment).forEach(item => {
             if (!item) return;
             Object.entries(item.bonuses || {}).forEach(([k, v]) => {
-                s[k] = (s[k] || 0) + v;
+                // Map flat stats to core stats
+                if (k === 'strFlat') s.str = (s.str || 0) + v;
+                else if (k === 'dexFlat') s.dex = (s.dex || 0) + v;
+                else if (k === 'intFlat') s.int = (s.int || 0) + v;
+                else s[k] = (s[k] || 0) + v;
             });
         });
 
@@ -235,7 +271,10 @@ class Player {
             : Math.floor(this.stats.str / 5);
         const base = Utils.randInt(min, max) + statBonus;
         const dmgMulti = 1 + (this.stats.damagePercent || 0) / 100;
-        return Math.round(base * dmgMulti);
+        const total = Math.round(base * dmgMulti);
+        // We don't track damageDealt here because this is just calculation.
+        // It should be tracked when actually dealing damage (in combat.js or attack methods).
+        return total;
     }
 
     isDead() {
@@ -265,7 +304,7 @@ class Player {
     // Skill System
     // ===========================
     canUseSkill(idx) {
-        const skill = this.classDef.skills[idx];
+        const skill = this.skills[idx];
         if (!skill) return false;
         if (this.skillCooldowns[idx] > 0) return false;
         if (this.mp < skill.manaCost) return false;
@@ -273,7 +312,7 @@ class Player {
     }
 
     useSkill(idx) {
-        const skill = this.classDef.skills[idx];
+        const skill = this.skills[idx];
         this.mp -= skill.manaCost;
         this.skillCooldowns[idx] = skill.cooldown;
         return skill;
@@ -295,9 +334,14 @@ class Player {
         }
         if (damage > 0) {
             this.hp -= damage;
+            this.stats.damageTaken += damage; // Track damage taken
             if (this.hp < 0) this.hp = 0;
         }
         return damage;
+    }
+
+    takeDamage(damage) {
+        return this.takeDamageWithShield(damage);
     }
 
     addToInventory(item) {

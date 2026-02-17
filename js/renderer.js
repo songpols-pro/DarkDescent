@@ -787,7 +787,20 @@ class Renderer {
 
         // Create if not exists
         if (!mesh) {
-            const color = new THREE.Color(telegraph.color || 0xff0000);
+            // Fix: THREE.Color doesn't support alpha in string, so we strip it or use valid format
+            // If color is hex number, fine. If string like '#rrggbbaa', we need to be careful.
+            // But here telegraph.color is likely a hex string or number.
+            // The warning said "rgba(100, 255, 0, 0.3)".
+            let colorVal = telegraph.color || 0xff0000;
+            if (typeof colorVal === 'string' && colorVal.startsWith('rgba')) {
+                // Extract rgb and ignore alpha for THREE.Color
+                const match = colorVal.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+                if (match) {
+                    colorVal = `rgb(${match[1]}, ${match[2]}, ${match[3]})`;
+                }
+            }
+
+            const color = new THREE.Color(colorVal);
             const mat = new THREE.MeshBasicMaterial({
                 color: color,
                 transparent: true,
@@ -809,7 +822,11 @@ class Renderer {
                 mesh.rotation.x = -Math.PI / 2;
                 // For line, we need to rotate to face target. 
                 // Telegraph object has .angle from enemy.startCasting
-                mesh.rotation.z = telegraph.angle + Math.PI / 2;
+                // Fix: Plane is created on XY, rotated -90deg X to lie on XZ.
+                // Top (Y+) points North (-Z).
+                // We want 0 rad to point East (+X).
+                // North (-Z) needs to rotate -90deg (-PI/2) to point East (+X).
+                mesh.rotation.z = telegraph.angle - Math.PI / 2;
 
                 mesh.position.y = 0.05;
             }
@@ -1148,7 +1165,8 @@ class Renderer {
     // CAMERA
     // ============================
     updateCamera(playerX, playerY) {
-        this.cameraTarget.set(playerX, 0, playerY);
+        // Offset Z by -3 to look "North" of player, pushing player "South" (Down) on screen
+        this.cameraTarget.set(playerX, 0, playerY - 3);
         const target = this.cameraTarget.clone().add(this.cameraOffset);
         this.camera.position.lerp(target, 0.15); // Smooth camera follow
         this.camera.lookAt(this.cameraTarget);

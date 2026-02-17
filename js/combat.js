@@ -14,6 +14,9 @@ class Combat {
 
         const actualDamage = enemy.takeDamage(damage);
 
+        // Track damage dealt
+        player.stats.damageDealt += actualDamage;
+
         // Floating text
         this.addFloatingText(
             enemy.x, enemy.y,
@@ -43,7 +46,9 @@ class Combat {
         if (result.killed) {
             result.xpGained = enemy.xp;
             result.levelUps = player.gainXp(enemy.xp);
+            result.levelUps = player.gainXp(enemy.xp);
             player.stats.enemiesKilled++;
+            player.stats.kills++; // Duplicate for safety
 
             this.addFloatingText(enemy.x, enemy.y, `+${enemy.xp} XP`, CONFIG.COLORS.XP_GAIN, false);
         }
@@ -73,8 +78,9 @@ class Combat {
             return { dodged: false, shielded: false, damage: actual };
         }
 
-        player.hp -= damage;
-        if (player.hp < 0) player.hp = 0;
+        player.takeDamage(damage);
+        // player.hp -= damage; // Handled by takeDamage which also tracks stats
+        // if (player.hp < 0) player.hp = 0;
 
         this.addFloatingText(player.x, player.y, damage.toString(), CONFIG.COLORS.DAMAGE, false);
 

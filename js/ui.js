@@ -31,23 +31,26 @@ class GameUI {
 
         // HP
         const maxHp = stats.maxHp || 100;
-        const hpPercent = Math.max(0, Math.min(100, (player.hp / maxHp * 100) || 0));
+        let hpPercent = (player.hp / maxHp * 100) || 0;
+        hpPercent = Math.max(0, Math.min(100, hpPercent));
         this.hpBar.style.width = hpPercent + '%';
-        this.hpText.textContent = `${Math.ceil(player.hp)} / ${maxHp}`;
+        this.hpText.textContent = `${Math.ceil(player.hp || 0)} / ${maxHp}`;
         this.hpBar.className = 'bar-fill hp-fill' + (hpPercent < 25 ? ' low' : '');
 
         // MP
         const maxMp = stats.maxMp || 50;
-        const mpPercent = Math.max(0, Math.min(100, (player.mp / maxMp * 100) || 0));
+        let mpPercent = (player.mp / maxMp * 100) || 0;
+        mpPercent = Math.max(0, Math.min(100, mpPercent));
         this.mpBar.style.width = mpPercent + '%';
-        this.mpText.textContent = `${Math.ceil(player.mp)} / ${maxMp}`;
+        this.mpText.textContent = `${Math.ceil(player.mp || 0)} / ${maxMp}`;
 
         // XP
         const xpNext = player.xpToNextLevel || 100;
-        const xpPercent = Math.max(0, Math.min(100, (player.xp / xpNext * 100) || 0));
+        let xpPercent = (player.xp / xpNext * 100) || 0;
+        xpPercent = Math.max(0, Math.min(100, xpPercent));
         this.xpBar.style.width = xpPercent + '%';
         const xpRemaining = xpNext - player.xp;
-        this.xpText.textContent = `${player.xp} / ${xpNext} (${xpRemaining} to Level)`;
+        this.xpText.textContent = `XP: ${player.xp} / ${xpNext} (Need ${xpRemaining})`;
 
         // Level & Floor
         this.levelText.textContent = player.advancedClass

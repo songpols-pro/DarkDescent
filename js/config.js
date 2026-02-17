@@ -361,6 +361,46 @@ const CONFIG = {
     ],
     FLOOR_ENEMY_COUNT: [5, 7, 9, 11, 13],
 
+    // Unlockable Skills (referenced by Skill Tree)
+    SKILLS: {
+        bash: {
+            id: 'bash', name: 'Shield Bash', icon: '🛡️', desc: 'AoE stun + damage',
+            cooldown: 8, manaCost: 10, type: 'aoe_damage',
+            damage: 25, range: 1.5, arc: Math.PI * 0.8, knockback: 1.5,
+            color: '#ff6644', effectColor: 0xff6644
+        },
+        cleave: {
+            id: 'cleave', name: 'Cleave', icon: '🪓', desc: 'Wide swing attack',
+            cooldown: 5, manaCost: 12, type: 'aoe_damage',
+            damage: 30, range: 2.0, arc: Math.PI, knockback: 0.5,
+            color: '#ff4444', effectColor: 0xff4444
+        },
+        dash: {
+            id: 'dash', name: 'Dash', icon: '💨', desc: 'Teleport forward',
+            manaCost: 10, cooldown: 3, type: 'dash',
+            dashDistance: 4, dashWidth: 1, damage: 15,
+            color: '#88ff88', effectColor: '#00ff00'
+        },
+        poison: {
+            id: 'poison', name: 'Poison Blade', icon: '☠️', desc: 'Coat weapon in poison',
+            manaCost: 15, cooldown: 10, type: 'buff',
+            buffStat: 'poisonHits', buffValue: 3, poisonDamage: 5,
+            color: '#aaff00', effectColor: '#00ff00'
+        },
+        fireball: {
+            id: 'fireball', name: 'Fireball', icon: '🔥', desc: 'Ranged AoE explosion',
+            manaCost: 20, cooldown: 4, type: 'aoe_target',
+            damage: 25, range: 5, radius: 1.5,
+            color: '#8888ff', effectColor: '#ffaa00'
+        },
+        frost_nova: {
+            id: 'frost_nova', name: 'Frost Nova', icon: '❄️', desc: 'Freeze enemies',
+            manaCost: 25, cooldown: 12, type: 'shield', // reusing shield type for now or create new 'nova' type logic?
+            shieldAmount: 30, slowRadius: 3, slowFactor: 0.5, duration: 5,
+            color: '#00ffff', effectColor: '#00ffff'
+        }
+    },
+
     // Sounds (placeholder)
     SOUNDS_ENABLED: false
 };

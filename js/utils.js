@@ -65,6 +65,7 @@ const Utils = {
 
     // Format number with commas
     formatNumber(n) {
+        if (n === undefined || n === null || isNaN(n)) return '0';
         return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     },
 

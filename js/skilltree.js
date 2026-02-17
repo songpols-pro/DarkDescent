@@ -29,7 +29,7 @@ class SkillTree {
 
         // Check requirements
         if (node.requirements) {
-            if (node.requirements.level && player.level < node.requirements.level) return false;
+            if (node.requirements.level && player && player.level < node.requirements.level) return false;
             // Check other stats if needed (e.g. strFlat)
             // For now, simpler check:
             // if (node.requirements.strFlat && player.stats.str < node.requirements.strFlat) return false;

@@ -194,6 +194,13 @@ class Game {
     startNewGame(classKey = 'warrior') {
         console.log('Starting new game with class:', classKey);
         try {
+            // Reset game state
+            this.enemies = [];
+            this.groundItems = [];
+            this.visibleSet = new Set();
+            this.combat = new Combat(); // Re-init combat to clear floating texts
+            this.keysHeld = {}; // Clear stuck keys
+
             this.player = new Player(classKey);
             this.skillTree = new SkillTree();
             this.currentFloor = 1;
@@ -370,6 +377,7 @@ class Game {
                     if (Math.abs(angleDiff) <= skill.arc / 2) {
                         const dmg = skill.damage + Math.floor(player.stats.str / 3);
                         enemy.takeDamage(dmg);
+                        player.stats.damageDealt += dmg; // Track damage
                         this.combat.addFloatingText(enemy.x, enemy.y, `${dmg}💥`, skill.color, true);
                         // Knockback
                         const kbDist = skill.knockback;
@@ -381,6 +389,7 @@ class Game {
                             const xpGained = enemy.xp;
                             player.gainXp(xpGained);
                             player.stats.enemiesKilled++;
+                            player.stats.kills++;
                             this.combat.addFloatingText(enemy.x, enemy.y, `+${xpGained} XP`, CONFIG.COLORS.XP_GAIN, false);
                             this.handleEnemyDrop(enemy);
                         }
@@ -412,10 +421,12 @@ class Game {
                     if (d < skill.dashWidth) {
                         const dmg = skill.damage + Math.floor(player.stats.dex / 3);
                         enemy.takeDamage(dmg);
+                        player.stats.damageDealt += dmg; // Track damage
                         this.combat.addFloatingText(enemy.x, enemy.y, `${dmg}💨`, skill.color, true);
                         if (enemy.isDead()) {
                             player.gainXp(enemy.xp);
                             player.stats.enemiesKilled++;
+                            player.stats.kills++;
                             this.handleEnemyDrop(enemy);
                         }
                     }
@@ -445,10 +456,12 @@ class Game {
                     if (d < skill.radius) {
                         const dmg = skill.damage + Math.floor(player.stats.int / 2);
                         enemy.takeDamage(dmg);
+                        player.stats.damageDealt += dmg; // Track damage
                         this.combat.addFloatingText(enemy.x, enemy.y, `${dmg}🔥`, skill.color, true);
                         if (enemy.isDead()) {
                             player.gainXp(enemy.xp);
                             player.stats.enemiesKilled++;
+                            player.stats.kills++;
                             this.handleEnemyDrop(enemy);
                         }
                     }

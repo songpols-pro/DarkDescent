@@ -62,7 +62,34 @@ const ITEM_BASES = {
     gold_ring: { type: ITEM_TYPES.RING, name: 'Gold Ring', symbol: '💍', slot: 'ring' },
 };
 
-// ... PREFIXES/SUFFIXES ...
+const POTION_TYPES = [
+    { name: 'Health Potion', symbol: '🍷', effect: 'heal', value: 50, color: '#ff4444' },
+    { name: 'Mana Potion', symbol: '🧪', effect: 'mana', value: 30, color: '#4444ff' },
+    { name: 'Strength Potion', symbol: '💪', effect: 'buff_str', value: 5, duration: 20, color: '#ffaa00' },
+    { name: 'Greater Health Potion', symbol: '🍷', effect: 'heal', value: 100, color: '#cc0000' },
+    { name: 'Greater Mana Potion', symbol: '🧪', effect: 'mana', value: 60, color: '#0000cc' }
+];
+
+// Prefixes (Magic+)
+const PREFIXES = [
+    { name: 'Strong', bonus: { strFlat: 2 } },
+    { name: 'Agile', bonus: { dexFlat: 2 } },
+    { name: 'Wise', bonus: { intFlat: 2 } },
+    { name: 'Robust', bonus: { maxHp: 20 } },
+    { name: 'Arcane', bonus: { maxMp: 15 } },
+    { name: 'Sharp', bonus: { strPercent: 5 } },
+    { name: 'Shiny', bonus: { itemsFound: 10 } }
+];
+
+// Suffixes (Rare+)
+const SUFFIXES = [
+    { name: 'of Power', bonus: { strFlat: 3, damagePercent: 5 } },
+    { name: 'of Speed', bonus: { dexFlat: 3, dodge: 5 } },
+    { name: 'of Mind', bonus: { intFlat: 3, maxMp: 30 } },
+    { name: 'of Titans', bonus: { maxHp: 50, armor: 2 } },
+    { name: 'of Greed', bonus: { itemsFound: 25 } },
+    { name: 'of Destruction', bonus: { damagePercent: 10, critChance: 5 } }
+];
 
 // Floor-based loot tables (item base keys available per floor)
 const FLOOR_LOOT = [
