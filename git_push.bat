@@ -1,0 +1,9 @@
+@echo off
+echo Adding files...
+git add .
+echo Committing changes...
+git commit -m "Revamp Inventory System: New UI, Visual Equipment, Detailed Stats"
+echo Pushing to remote...
+git push
+echo Done!
+pause

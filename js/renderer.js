@@ -338,282 +338,371 @@ class Renderer {
     // ============================
     // PLAYER (class-specific model)
     // ============================
+    // ============================
+    // PLAYER (class-specific model)
+    // ============================
     buildPlayer(player) {
         if (this.playerMesh) {
             this.entityGroup.remove(this.playerMesh);
         }
 
+        const data = this.createPlayerGroup(player);
+        this.playerMesh = data.mesh;
+        this.playerLimbs = data.limbs; // Store references
+        this.playerSwordMesh = data.swordMesh;
+        this.entityGroup.add(this.playerMesh);
+    }
+
+    renderPreview(player, canvas) {
+        if (!canvas) return;
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Init preview renderer if needed
+        if (!this.previewRenderer) {
+            this.previewRenderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+            this.previewRenderer.setSize(width, height);
+            this.previewRenderer.setPixelRatio(1);
+
+            this.previewScene = new THREE.Scene();
+            this.previewScene.background = new THREE.Color(0x151520); // Dark BG for preview
+
+            // Preview Lights
+            const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+            this.previewScene.add(ambient);
+            const dir = new THREE.DirectionalLight(0xffd700, 0.8);
+            dir.position.set(2, 5, 4);
+            this.previewScene.add(dir);
+
+            this.previewCamera = new THREE.PerspectiveCamera(35, width / height, 0.1, 100);
+            this.previewCamera.position.set(0, 1.2, 3.5);
+            this.previewCamera.lookAt(0, 0.8, 0);
+        }
+
+        // Clear previous model
+        while (this.previewScene.children.length > 2) { // Keep lights
+            const child = this.previewScene.children[2];
+            this.previewScene.remove(child);
+        }
+
+        // Build player model for preview
+        const data = this.createPlayerGroup(player);
+        const mesh = data.mesh;
+
+        // Idle Animation pose for preview
+        if (data.limbs.leftArm) data.limbs.leftArm.rotation.z = 0.2;
+        if (data.limbs.rightArm) data.limbs.rightArm.rotation.z = -0.2;
+
+        this.previewScene.add(mesh);
+        this.previewRenderer.render(this.previewScene, this.previewCamera);
+    }
+
+    updatePlayerVisuals(player) {
+        // Rebuild in-game mesh
+        this.buildPlayer(player);
+
+        // If inventory is open, update preview too (optional optimization: check visibility)
+        const previewCanvas = document.getElementById('char-preview-canvas');
+        if (previewCanvas && previewCanvas.offsetParent !== null) {
+            this.renderPreview(player, previewCanvas);
+        }
+    }
+
+    createPlayerGroup(player) {
         const cls = player.classDef;
         const group = new THREE.Group();
-
-        // Store limb references for animation
         const limbs = {};
+        let swordMesh = null;
 
         const bodyMat = new THREE.MeshLambertMaterial({ color: cls.bodyColor });
-        const headMat = new THREE.MeshLambertMaterial({ color: cls.headColor, emissive: cls.headColor, emissiveIntensity: 0.15 });
-        const weaponMat = new THREE.MeshLambertMaterial({ color: cls.weaponColor, emissive: cls.weaponColor, emissiveIntensity: 0.2 });
+        const headMat = new THREE.MeshLambertMaterial({ color: cls.headColor });
+        const weaponMat = new THREE.MeshLambertMaterial({ color: cls.weaponColor });
         const skinMat = new THREE.MeshLambertMaterial({ color: 0xffcc99 });
         const darkMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
-        const eyeWhite = new THREE.MeshLambertMaterial({ color: 0xffffff });
-        const eyePupil = new THREE.MeshLambertMaterial({ color: 0x111111 });
         const beltMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
 
         // === TORSO ===
-        const torso = new THREE.Mesh(
-            new THREE.BoxGeometry(0.4, 0.45, 0.25),
-            bodyMat
-        );
-        torso.position.y = 0.52;
-        torso.castShadow = true;
-        group.add(torso);
+        // Determine Armor Look
+        let chestColor = cls.bodyColor;
+        let chestGeoScore = 0; // 0=cloth, 1=leather/chain, 2=plate
+
+        if (player.equipment.chest) {
+            const base = ITEM_BASES[player.equipment.chest.baseKey];
+            if (base) {
+                if (base.baseArmor > 8) { chestGeoScore = 2; chestColor = 0xaaaaaa; } // Plate
+                else if (base.baseArmor > 4) { chestGeoScore = 1; chestColor = 0x667788; } // Chain
+                else { chestColor = 0x553322; } // Cloth/Leather override
+            }
+        }
+
+        const torsoInfo = this.buildTorso(chestColor, chestGeoScore);
+        group.add(torsoInfo.mesh);
 
         // === BELT ===
-        const belt = new THREE.Mesh(
-            new THREE.BoxGeometry(0.42, 0.06, 0.27),
-            beltMat
-        );
+        const belt = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.06, 0.27), beltMat);
         belt.position.y = 0.31;
         group.add(belt);
 
-        // Belt buckle
-        const buckle = new THREE.Mesh(
-            new THREE.BoxGeometry(0.08, 0.06, 0.02),
-            new THREE.MeshLambertMaterial({ color: 0xFFD700, emissive: 0xFFD700, emissiveIntensity: 0.3 })
-        );
-        buckle.position.set(0, 0.31, 0.14);
-        group.add(buckle);
-
         // === HEAD ===
-        const head = new THREE.Mesh(
-            new THREE.BoxGeometry(0.32, 0.32, 0.3),
-            skinMat
-        );
-        head.position.y = 0.95;
-        head.castShadow = true;
-        group.add(head);
+        let headColor = cls.headColor;
+        let hatType = 'none'; // none, cap, helm, crown, hood, mage_hat
 
-        // Hair (back of head)
-        const hair = new THREE.Mesh(
-            new THREE.BoxGeometry(0.34, 0.2, 0.15),
-            new THREE.MeshLambertMaterial({ color: player.classKey === 'mage' ? 0x444466 : player.classKey === 'rogue' ? 0x222222 : 0x884422 })
-        );
-        hair.position.set(0, 1.02, -0.1);
-        group.add(hair);
+        // Default class hats
+        if (player.classKey === 'mage') hatType = 'mage_hat';
+        if (player.classKey === 'rogue') hatType = 'hood';
+        if (player.classKey === 'warrior') hatType = 'helm';
 
-        // Eyes
-        const eyeGeo = new THREE.BoxGeometry(0.06, 0.06, 0.02);
-        const pupilGeo = new THREE.BoxGeometry(0.03, 0.04, 0.02);
+        // Equipment Override
+        if (player.equipment.helmet) {
+            const base = player.equipment.helmet.baseKey;
+            if (base.includes('cap')) hatType = 'cap';
+            else if (base.includes('helm')) hatType = 'helm';
+            else if (base.includes('crown')) hatType = 'crown';
+            else if (base.includes('hood')) hatType = 'hood';
+        }
 
-        const leftEyeWhite = new THREE.Mesh(eyeGeo, eyeWhite);
-        leftEyeWhite.position.set(-0.08, 0.97, 0.16);
-        group.add(leftEyeWhite);
-        const leftPupil = new THREE.Mesh(pupilGeo, eyePupil);
-        leftPupil.position.set(-0.08, 0.96, 0.17);
-        group.add(leftPupil);
-
-        const rightEyeWhite = new THREE.Mesh(eyeGeo, eyeWhite);
-        rightEyeWhite.position.set(0.08, 0.97, 0.16);
-        group.add(rightEyeWhite);
-        const rightPupil = new THREE.Mesh(pupilGeo, eyePupil);
-        rightPupil.position.set(0.08, 0.96, 0.17);
-        group.add(rightPupil);
-
-        // Mouth
-        const mouth = new THREE.Mesh(
-            new THREE.BoxGeometry(0.08, 0.02, 0.02),
-            new THREE.MeshLambertMaterial({ color: 0xcc6644 })
-        );
-        mouth.position.set(0, 0.88, 0.16);
-        group.add(mouth);
+        const headGroup = this.buildHead(skinMat, hatType, player.classKey);
+        headGroup.position.y = 0.95;
+        group.add(headGroup);
 
         // === ARMS ===
         const armGeo = new THREE.BoxGeometry(0.12, 0.4, 0.14);
 
-        // Pivot groups for arms to rotate around shoulder
+        // Left Arm
         const leftArmGroup = new THREE.Group();
-        leftArmGroup.position.set(-0.28, 0.65, 0); // Shoulder position
-
-        const leftArm = new THREE.Mesh(armGeo, bodyMat);
-        leftArm.position.y = -0.15; // Offset relative to shoulder
-        leftArm.castShadow = true;
+        leftArmGroup.position.set(-0.28, 0.65, 0);
+        const leftArm = new THREE.Mesh(armGeo, new THREE.MeshLambertMaterial({ color: chestColor }));
+        leftArm.position.y = -0.15;
         leftArmGroup.add(leftArm);
-
-        // Hand
-        const handGeo = new THREE.BoxGeometry(0.1, 0.08, 0.1);
-        const leftHand = new THREE.Mesh(handGeo, skinMat);
+        const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.1), skinMat);
         leftHand.position.set(0, -0.37, 0);
         leftArmGroup.add(leftHand);
-
         group.add(leftArmGroup);
         limbs.leftArm = leftArmGroup;
 
-
+        // Right Arm
         const rightArmGroup = new THREE.Group();
-        rightArmGroup.position.set(0.28, 0.65, 0); // Shoulder position
-
-        const rightArm = new THREE.Mesh(armGeo, bodyMat);
+        rightArmGroup.position.set(0.28, 0.65, 0);
+        const rightArm = new THREE.Mesh(armGeo, new THREE.MeshLambertMaterial({ color: chestColor }));
         rightArm.position.y = -0.15;
-        rightArm.castShadow = true;
         rightArmGroup.add(rightArm);
-
-        const rightHand = new THREE.Mesh(handGeo, skinMat);
+        const rightHand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.1), skinMat);
         rightHand.position.set(0, -0.37, 0);
         rightArmGroup.add(rightHand);
-
         group.add(rightArmGroup);
         limbs.rightArm = rightArmGroup;
 
+        // === LEGS (Boots) ===
+        let bootColor = 0x222222;
+        if (player.equipment.boots) {
+            const base = player.equipment.boots.baseKey;
+            if (base.includes('iron')) bootColor = 0x777777;
+            if (base.includes('shadow')) bootColor = 0x111111;
+            if (base.includes('sandals')) bootColor = 0x8B4513;
+        }
 
-        // === LEGS ===
-        const legGeo = new THREE.BoxGeometry(0.15, 0.3, 0.17);
+        const legMats = { leg: darkMat, boot: new THREE.MeshLambertMaterial({ color: bootColor }) };
+        const leftLeg = this.buildLeg(legMats, -0.1);
+        group.add(leftLeg);
+        limbs.leftLeg = leftLeg;
 
-        // Pivot groups for legs (hips)
-        const leftLegGroup = new THREE.Group();
-        leftLegGroup.position.set(-0.1, 0.3, 0);
+        const rightLeg = this.buildLeg(legMats, 0.1);
+        group.add(rightLeg);
+        limbs.rightLeg = rightLeg;
 
-        const leftLeg = new THREE.Mesh(legGeo, darkMat);
-        leftLeg.position.y = -0.15;
-        leftLeg.castShadow = true;
-        leftLegGroup.add(leftLeg);
+        // === WEAPON ===
+        // Determine weapon type
+        let wepType = 'none';
+        let wepColor = cls.weaponColor;
 
-        // Foot
-        const footGeo = new THREE.BoxGeometry(0.15, 0.06, 0.22);
-        const leftFoot = new THREE.Mesh(footGeo, darkMat);
-        leftFoot.position.set(0, -0.27, 0.03);
-        leftLegGroup.add(leftFoot);
+        if (player.equipment.weapon) {
+            const base = player.equipment.weapon.baseKey;
+            if (base.includes('sword') || base.includes('blade')) wepType = 'sword';
+            if (base.includes('axe')) wepType = 'axe';
+            if (base.includes('dagger')) wepType = 'dagger';
+            if (base.includes('spear') || base.includes('lance')) wepType = 'spear';
+            if (base.includes('staff')) wepType = 'staff';
 
-        group.add(leftLegGroup);
-        limbs.leftLeg = leftLegGroup;
+            // Special colors based on name
+            if (base.includes('flame')) wepColor = 0xff4400;
+            if (base.includes('dark')) wepColor = 0x330044;
+            if (base.includes('iron') || base.includes('steel')) wepColor = 0xcccccc;
+            if (base.includes('wood')) wepColor = 0x8B4513;
+        } else {
+            // Default class weapon
+            if (player.classKey === 'warrior') wepType = 'sword';
+            if (player.classKey === 'rogue') wepType = 'dagger';
+            if (player.classKey === 'mage') wepType = 'staff';
+        }
 
+        if (wepType !== 'none') {
+            const wepMesh = this.buildWeapon(wepType, wepColor);
 
-        const rightLegGroup = new THREE.Group();
-        rightLegGroup.position.set(0.1, 0.3, 0);
+            if (wepType === 'dagger') {
+                // Dual wield for visual? Or just one. Rogues dual wield in original code.
+                rightArmGroup.add(wepMesh);
+                // Optional: Offhand dagger
+                if (player.classKey === 'rogue') {
+                    const offDagger = wepMesh.clone();
+                    leftArmGroup.add(offDagger);
+                }
+            } else {
+                rightArmGroup.add(wepMesh);
+            }
+            swordMesh = rightArmGroup; // Arm controls rotation
+        }
 
-        const rightLeg = new THREE.Mesh(legGeo, darkMat);
-        rightLeg.position.y = -0.15;
-        rightLeg.castShadow = true;
-        rightLegGroup.add(rightLeg);
-
-        const rightFoot = new THREE.Mesh(footGeo, darkMat);
-        rightFoot.position.set(0, -0.27, 0.03);
-        rightLegGroup.add(rightFoot);
-
-        group.add(rightLegGroup);
-        limbs.rightLeg = rightLegGroup;
-
-
-        // === CLASS-SPECIFIC GEAR ===
+        // === OFFHAND (Shield / Book) ===
+        // Currently logic assumes class based offhand defaults unless we add shield slots
         if (player.classKey === 'warrior') {
-            const helmet = new THREE.Mesh(
-                new THREE.BoxGeometry(0.38, 0.18, 0.36),
-                new THREE.MeshLambertMaterial({ color: 0x888899, emissive: 0x888899, emissiveIntensity: 0.1 })
-            );
-            helmet.position.set(0, 1.1, 0);
-            group.add(helmet);
-            const crest = new THREE.Mesh(
-                new THREE.BoxGeometry(0.05, 0.12, 0.28),
-                new THREE.MeshLambertMaterial({ color: 0xcc2222 })
-            );
-            crest.position.set(0, 1.22, 0);
-            group.add(crest);
-
-            // Sword attached to right hand
-            const swordBlade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.65, 0.04), weaponMat);
-            swordBlade.position.set(0, -0.25, 0.2); // Relative to right arm pivot
-            swordBlade.rotation.x = -Math.PI / 2;
-            swordBlade.castShadow = true;
-            rightArmGroup.add(swordBlade);
-            this.playerSwordMesh = rightArmGroup; // Rotate entire arm for attack
-
-            const guard = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.04, 0.06), new THREE.MeshLambertMaterial({ color: 0xFFD700 }));
-            guard.position.set(0, -0.3, 0.1);
-            guard.rotation.x = -Math.PI / 2;
-            rightArmGroup.add(guard);
-
-            // Shield on left arm
             const shield = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.35, 0.04), new THREE.MeshLambertMaterial({ color: 0x884422 }));
             shield.position.set(0.1, -0.15, 0);
             shield.rotation.y = Math.PI / 2;
             leftArmGroup.add(shield);
-
-            const padMat = new THREE.MeshLambertMaterial({ color: 0x888899 });
-            const padGeo = new THREE.BoxGeometry(0.18, 0.1, 0.2);
-            const leftPad = new THREE.Mesh(padGeo, padMat);
-            leftPad.position.set(0, 0.1, 0);
-            leftArmGroup.add(leftPad);
-            const rightPad = new THREE.Mesh(padGeo, padMat);
-            rightPad.position.set(0, 0.1, 0);
-            rightArmGroup.add(rightPad);
-
-        } else if (player.classKey === 'rogue') {
-            const hood = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.25, 0.38), new THREE.MeshLambertMaterial({ color: 0x1a3322 }));
-            hood.position.set(0, 1.08, -0.02);
-            group.add(hood);
-
-            // Daggers attached to hands
-            const daggerMat = new THREE.MeshLambertMaterial({ color: 0xaaaaaa, emissive: 0xaaaaaa, emissiveIntensity: 0.15 });
-            const daggerGeo = new THREE.BoxGeometry(0.04, 0.35, 0.04);
-
-            const dagger1 = new THREE.Mesh(daggerGeo, daggerMat);
-            dagger1.position.set(0, -0.25, 0.1);
-            dagger1.rotation.x = -Math.PI / 2;
-            rightArmGroup.add(dagger1);
-            this.playerSwordMesh = rightArmGroup;
-
-            const dagger2 = new THREE.Mesh(daggerGeo, daggerMat);
-            dagger2.position.set(0, -0.25, 0.1);
-            dagger2.rotation.x = -Math.PI / 2;
-            leftArmGroup.add(dagger2);
-
-            const cape = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.04), new THREE.MeshLambertMaterial({ color: 0x224433, emissive: 0x112211, emissiveIntensity: 0.1 }));
-            cape.position.set(0, 0.5, -0.16);
-            group.add(cape);
-
-            // Mask
-            const mask = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.1, 0.04), new THREE.MeshLambertMaterial({ color: 0x1a3322 }));
-            mask.position.set(0, 0.88, 0.17);
-            group.add(mask);
-
         } else if (player.classKey === 'mage') {
-            const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.04, 8), new THREE.MeshLambertMaterial({ color: 0x2244aa }));
-            hatBrim.position.set(0, 1.12, 0);
-            group.add(hatBrim);
-            const hatTop = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.35, 8), new THREE.MeshLambertMaterial({ color: 0x2244aa }));
-            hatTop.position.set(0, 1.32, 0);
-            group.add(hatTop);
-
-            // Star on hat
-            const star = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), new THREE.MeshLambertMaterial({ color: 0xFFD700, emissive: 0xFFD700 }));
-            star.position.set(0, 1.48, 0);
-            group.add(star);
-
-            // Staff in right hand
-            const staff = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.9, 0.06), new THREE.MeshLambertMaterial({ color: 0x663322 }));
-            staff.position.set(0, -0.1, 0.1);
-            staff.rotation.x = -0.2;
-            rightArmGroup.add(staff);
-            this.playerSwordMesh = rightArmGroup;
-
-            const orb = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshLambertMaterial({ color: cls.weaponColor, emissive: cls.weaponColor }));
-            orb.position.set(0, 0.4, 0.15); // Top of staff
-            rightArmGroup.add(orb);
-
-            // Robe logic
-            // Add skirt to make it look like a robe
-            const robe = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.25, 0.3), new THREE.MeshLambertMaterial({ color: 0x1a2266 }));
-            robe.position.set(0, 0.22, 0);
-            group.add(robe);
-
-            // Book in left hand
             const book = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.04), new THREE.MeshLambertMaterial({ color: 0x992222 }));
             book.position.set(0.1, -0.2, 0);
             book.rotation.z = 0.2;
             leftArmGroup.add(book);
         }
 
-        this.playerMesh = group;
-        this.playerLimbs = limbs; // Store references
-        this.entityGroup.add(this.playerMesh);
+        return { mesh: group, limbs, swordMesh };
+    }
+
+    buildTorso(color, type) {
+        const mat = new THREE.MeshLambertMaterial({ color: color });
+        const geo = new THREE.BoxGeometry(0.4, 0.45, 0.25);
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.y = 0.52;
+        mesh.castShadow = true;
+
+        // Add details based on armor type
+        if (type === 2) { // Plate
+            const plate = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.28), new THREE.MeshLambertMaterial({ color: 0xeeeeee }));
+            plate.position.set(0, 0, 0);
+            mesh.add(plate);
+        }
+        return { mesh };
+    }
+
+    buildHead(skinMat, hatType, classKey) {
+        const group = new THREE.Group();
+
+        // Face
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.3), skinMat);
+        head.castShadow = true;
+        group.add(head);
+
+        // Eyes
+        const eyeGeo = new THREE.BoxGeometry(0.06, 0.06, 0.02);
+        const eyeWhite = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        const eyePupil = new THREE.MeshLambertMaterial({ color: 0x111111 });
+
+        const le = new THREE.Mesh(eyeGeo, eyeWhite); le.position.set(-0.08, 0.02, 0.16); group.add(le);
+        const lp = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.02), eyePupil); lp.position.set(-0.08, 0.02, 0.17); group.add(lp);
+
+        const re = new THREE.Mesh(eyeGeo, eyeWhite); re.position.set(0.08, 0.02, 0.16); group.add(re);
+        const rp = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.02), eyePupil); rp.position.set(0.08, 0.02, 0.17); group.add(rp);
+
+        // Hat Logic
+        const hatColor = classKey === 'mage' ? 0x2244aa : (classKey === 'rogue' ? 0x1a3322 : 0x888899);
+        const hatMat = new THREE.MeshLambertMaterial({ color: hatColor });
+
+        if (hatType === 'helm') {
+            const helm = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.36, 0.36), hatMat);
+            group.add(helm);
+        } else if (hatType === 'cap') {
+            const cap = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.34), new THREE.MeshLambertMaterial({ color: 0x8B4513 }));
+            cap.position.y = 0.18;
+            group.add(cap);
+        } else if (hatType === 'crown') {
+            const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.1, 8), new THREE.MeshLambertMaterial({ color: 0xFFD700 }));
+            crown.position.y = 0.2;
+            group.add(crown);
+        } else if (hatType === 'mage_hat') {
+            const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.04, 8), hatMat);
+            brim.position.y = 0.17;
+            group.add(brim);
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.35, 8), hatMat);
+            cone.position.y = 0.37;
+            group.add(cone);
+        } else if (hatType === 'hood') {
+            const hood = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.38, 0.38), hatMat);
+            // Hood covers more
+            group.add(hood);
+        } else {
+            // Hair if no full helm
+            const hair = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.34), new THREE.MeshLambertMaterial({ color: 0x553322 }));
+            hair.position.y = 0.18;
+            group.add(hair);
+        }
+
+        return group;
+    }
+
+    buildLeg(mats, xOffset) {
+        const group = new THREE.Group();
+        group.position.set(xOffset, 0.3, 0);
+
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.3, 0.17), mats.leg);
+        leg.position.y = -0.15;
+        leg.castShadow = true;
+        group.add(leg);
+
+        const foot = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.06, 0.22), mats.boot);
+        foot.position.set(0, -0.27, 0.03);
+        group.add(foot);
+
+        return group;
+    }
+
+    buildWeapon(type, color) {
+        const mat = new THREE.MeshLambertMaterial({ color: color });
+        const mesh = new THREE.Group();
+
+        if (type === 'sword') {
+            const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.65, 0.04), mat);
+            blade.position.set(0, -0.25, 0.2);
+            blade.rotation.x = -Math.PI / 2;
+            mesh.add(blade);
+            const guard = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.04, 0.06), new THREE.MeshLambertMaterial({ color: 0xFFD700 }));
+            guard.position.set(0, -0.3, 0.1);
+            guard.rotation.x = -Math.PI / 2;
+            mesh.add(guard);
+        } else if (type === 'axe') {
+            const handle = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.6, 0.04), new THREE.MeshLambertMaterial({ color: 0x8B4513 }));
+            handle.position.set(0, -0.25, 0.2);
+            handle.rotation.x = -Math.PI / 2;
+            mesh.add(handle);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.05, 0.15), mat);
+            head.position.set(0, -0.5, 0.2);
+            head.rotation.x = -Math.PI / 2;
+            mesh.add(head);
+        } else if (type === 'dagger') {
+            const blade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.35, 0.04), mat);
+            blade.position.set(0, -0.25, 0.1);
+            blade.rotation.x = -Math.PI / 2;
+            mesh.add(blade);
+        } else if (type === 'spear') {
+            const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.2, 0.03), new THREE.MeshLambertMaterial({ color: 0x8B4513 }));
+            handle.position.set(0, -0.25, 0.2);
+            handle.rotation.x = -Math.PI / 2;
+            mesh.add(handle);
+            const tip = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.2, 4), mat);
+            tip.position.set(0, -0.85, 0.2);
+            tip.rotation.x = -Math.PI / 2;
+            mesh.add(tip);
+        } else if (type === 'staff') {
+            const staff = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.0, 0.05), new THREE.MeshLambertMaterial({ color: 0x553322 }));
+            staff.position.set(0, -0.1, 0.1);
+            staff.rotation.x = -0.2;
+            mesh.add(staff);
+            const orb = new THREE.Mesh(new THREE.SphereGeometry(0.08), mat);
+            orb.position.set(0, 0.4, 0.15);
+            mesh.add(orb);
+        }
+
+        return mesh;
     }
 
     // Attack slash visual effect

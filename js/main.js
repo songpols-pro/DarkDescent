@@ -68,6 +68,7 @@ class Game {
 
             if (this.state === CONFIG.STATE.PLAYING) {
                 if (key === 't') { this.openSkillTree(); return; }
+                if (key === 'i' || key === 'b') { this.ui.toggleInventory(this.player, this.renderer); return; }
                 if (key === 'q') { this.executeSkill(0); return; }
                 if (key === 'e') { this.executeSkill(1); return; }
                 if (key === 'f') { this.tryPickup(); return; }
@@ -80,6 +81,11 @@ class Game {
 
             if (this.state === CONFIG.STATE.SKILL_TREE) {
                 if (key === 't' || e.key === 'Escape') this.closeSkillTree();
+            }
+
+            // Inventory toggle (works in playing or inventory state)
+            if (this.state === CONFIG.STATE.INVENTORY) {
+                if (key === 'i' || key === 'b' || e.key === 'Escape') this.ui.toggleInventory(this.player, this.renderer);
             }
         });
 
@@ -98,8 +104,8 @@ class Game {
             if (this.state !== CONFIG.STATE.PLAYING) return;
             if (e.button !== 0) return; // left click only
 
-            // Don't attack if clicking on UI panels or skill bar
-            if (e.target.closest('#side-panel') || e.target.closest('#hud') || e.target.closest('#skill-bar')) return;
+            // Don't attack if clicking on UI panels, skill bar, or modal
+            if (e.target.closest('#side-panel') || e.target.closest('#hud') || e.target.closest('#skill-bar') || e.target.closest('.modal-overlay')) return;
 
             this.performAttack();
         });
@@ -120,11 +126,13 @@ class Game {
             }
         });
 
-        // Inventory clicks
+        // Inventory clicks (Global handler for both sidebar and modal)
         document.addEventListener('click', (e) => {
-            if (this.state !== CONFIG.STATE.PLAYING) return;
+            // Only handle inventory clicks if we are in playing or inventory state
+            if (this.state !== CONFIG.STATE.PLAYING && this.state !== CONFIG.STATE.INVENTORY) return;
 
-            const invSlot = e.target.closest('.inv-slot');
+            // Handle Item interactions (Use/Equip/Drop)
+            const invSlot = e.target.closest('.inv-slot, .bag-slot'); // Support both old and new classes
             if (invSlot && invSlot.dataset.index !== undefined) {
                 const idx = parseInt(invSlot.dataset.index);
                 const result = this.inventory.handleClick(this.player, idx, this.skillTree, e.shiftKey);
@@ -137,11 +145,17 @@ class Game {
                         this.ui.addLog(`Dropped: ${result.item.name}`, '#aaaaaa');
                         this.groundItems.push({ x: this.player.x, y: this.player.y, item: result.item });
                     }
+                    // Update both UIs
                     this.ui.update(this.player, this.currentFloor);
+                    if (this.state === CONFIG.STATE.INVENTORY) this.ui.updateInventoryModal(this.player);
+
+                    // Trigger visual update if needed
+                    if (result.action === 'equip') this.renderer.updatePlayerVisuals(this.player);
                 }
             }
 
-            const equipSlot = e.target.closest('.equip-slot');
+            // Handle Equipment interactions (Unequip)
+            const equipSlot = e.target.closest('.equip-slot, .inv-equip-slot');
             if (equipSlot && equipSlot.dataset.slot) {
                 const result = this.inventory.handleEquipClick(this.player, equipSlot.dataset.slot, this.skillTree);
                 if (result) {
@@ -151,7 +165,12 @@ class Game {
                     } else {
                         this.ui.addLog(`Unequipped from ${result.slot}`, '#aaaaaa');
                     }
+                    // Update both UIs
                     this.ui.update(this.player, this.currentFloor);
+                    if (this.state === CONFIG.STATE.INVENTORY) this.ui.updateInventoryModal(this.player);
+
+                    // Trigger visual update
+                    this.renderer.updatePlayerVisuals(this.player);
                 }
             }
         });
